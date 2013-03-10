@@ -23,7 +23,13 @@
 -- coalgebraically. Finally, we lift this idea to live in a monad where reactive values
 -- can interact with each other and the real world.
 -----------------------------------------------------------------------------
-module Data.Fluorine where
+module Data.Fluorine
+ ( module Data.Fluorine.Moment
+ , module Data.Fluorine.FunSeg
+ , module Data.Fluorine.Reactive
+ , module Data.Fluorine.Reactive.Source
+ , module Data.Fluorine.Reactive.Reagent
+ ) where
 
 -- Provides weak references with predictable lifetimes.
 import Data.Fluorine.Anchor
@@ -32,4 +38,9 @@ import Data.Fluorine.Moment
 -- FunSeg (for Function Segment) is a monoid for constructing time-varying values
 -- with a better representation than (t -> a).
 import Data.Fluorine.FunSeg
--- 
+-- Reactive is the type of values that change with time and respond to messages.
+import Data.Fluorine.Reactive
+-- A Source is a Reactive value that responds to no messages.
+import Data.Fluorine.Reactive.Source
+-- Reagent is a powerful way of defining Reactive values.
+import Data.Fluorine.Reactive.Reagent

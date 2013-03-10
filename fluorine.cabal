@@ -3,21 +3,40 @@
 
 name:                fluorine
 version:             0.1.0.0
-synopsis:            Functional Reactive Programming
--- description:         
+synopsis:            Functional Reactive Programming by mixing coalgebraic objects in a monad.
+description:         
+ Most FRP libraries cleave to an applicative or arrow interface.
+ Fluorine provides a monad that captures time-dependent effects.
+ Reactive values are constructed with a coalgebraic flavor living inside the monad.
 homepage:            github.com/dharaj/fluorine
 license:             BSD3
 license-file:        LICENSE
 author:              Dan Haraj
 maintainer:          danharaj@gmail.com
--- copyright:           
--- category:            
+copyright:           (c) Daniel Haraj 2013
+category:            FRP
 build-type:          Simple
 cabal-version:       >=1.8
 
+source-repository head
+ type: git
+ location: git://github.com/dharaj/fluorine.git
+
 library
   exposed-modules:     Data.Fluorine
-  -- other-modules:       
+                       Data.Fluorine.Moment
+                       Data.Fluorine.FunSeg
+                       Data.Fluorine.Reactive
+                       Data.Fluorine.Reactive.Source
+                       Data.Fluorine.Reactive.Reagent 
+                       
   build-depends:       base >= 4 && < 5
+                     , stm >= 2 && < 3
                      , mtl >= 2 && < 3
+                     , comonad >= 3 && < 4
                      , transformers >= 0 && < 1
+                     , semigroups >= 0 && < 1
+                     , void >= 0 && <1
+                     , ghc-prim
+                     
+  hs-source-dirs: src

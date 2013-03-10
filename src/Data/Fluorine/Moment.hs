@@ -36,10 +36,13 @@ data Scheduler t = Scheduler (IORef [APtr (t -> IO (), IO (Maybe (Moment t ())))
                              (IO t)
 -- The Moment monad is simply IO with access to a Scheduler that handles all
 -- time-bookkeeping functionality. We wrap it in a newtype to give nicer error messages.
-newtype Moment t a = Moment { runMoment :: ReaderT (Scheduler t) IO a }
+newtype Moment t a = Moment { runMoment' :: ReaderT (Scheduler t) IO a }
  deriving ( Functor, Applicative, Monad
           , MonadIO, MonadFix, MonadReader (Scheduler t)
           )
+
+runMoment :: Moment t a -> Scheduler t -> IO a
+runMoment = runReaderT . runMoment'
           
 mkScheduler :: IO t -> IO (Scheduler t)
 stepScheduler :: Scheduler t -> IO ()
@@ -59,7 +62,7 @@ stepScheduler sc@(Scheduler mk tick) = do
  mapM_ ($ t) fs
  ps <- catMaybes <$> sequence ss
  writeIORef mk (map snd ms')
- mapM_ (($ sc) . runReaderT . runMoment) ps
+ mapM_ (($ sc) . runMoment) ps
 
 register a1 a2 = Moment . ReaderT $ \(Scheduler m _) -> do
  a <- mkAnchor
