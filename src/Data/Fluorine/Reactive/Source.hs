@@ -24,14 +24,14 @@ type Source t a = Reactive t (Const Void) a
 
 -- source is updated by an IO action every frame.
 source :: a -> IO a -> Moment t (Source t a)
--- callback attaches a callback to an unbounded queue which is emptied each frame.
+-- creates a callback to an unbounded queue which is emptied each frame.
 callback :: ((a -> IO ()) -> IO ()) -> Moment t (Source t [a])
 
-source a0 a = reactive a0 
-                       (\_ _ -> (,Nothing) <$> a) 
-                       (\(Query q) x -> return (q x undefined))
-                       (const return)
-                       
+source a0 a = element a0 
+                      (\_ _ -> (,Nothing) <$> a) 
+                      return
+                      (const return)
+                      
 callback k = do
   c <- io newTChanIO
   io (k (atomically . writeTChan c))

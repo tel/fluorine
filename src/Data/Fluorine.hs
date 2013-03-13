@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Fluorine
@@ -29,6 +30,7 @@ module Data.Fluorine
  , module Data.Fluorine.Reactive
  , module Data.Fluorine.Reactive.Source
  , module Data.Fluorine.Reactive.Reagent
+ , Reaction (..), reactimate
  ) where
 
 -- Provides weak references with predictable lifetimes.
@@ -44,3 +46,15 @@ import Data.Fluorine.Reactive
 import Data.Fluorine.Reactive.Source
 -- Reagent is a powerful way of defining Reactive values.
 import Data.Fluorine.Reactive.Reagent
+
+data Reaction t = Reaction (Moment t (Reaction t)) | Completed
+
+reactimate :: IO t -> Reaction t -> IO ()
+
+reactimate tick r = do
+  case r of
+   Completed -> return ()
+   Reaction r -> mkScheduler tick >>= \s -> go s r
+ where go s r = runMoment r s >>= \case
+        Completed -> return ()
+        Reaction r -> stepScheduler s >> go s r

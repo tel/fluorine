@@ -23,19 +23,19 @@ animation :: (Ord t, Num t) => FunSeg t a -> Moment t (Source t a)
 -- If we want to define a timeless Reactive value that receives messages
 machine :: a -> (a -> Moment t (f a)) -> Moment t (Reactive t f a)
 
-animation a = reactive a
-                       (\dt a -> return (stepF dt a, Nothing))
-                       (\(Query q) a -> return (q (extract a) undefined))
-                       (const return)
+animation a = element a
+                      (\dt a -> return (stepF dt a, Nothing))
+                      (return . extract)
+                      (const return)
                        
 machine a f = do k <- f a
-                 reactive (a, k)
-                          (\_ a -> return (a, Nothing))
-                          (\(Query q) (a,k) -> return (q a k))
-                          (\(Message m) (a,k) -> m a k >>= \case
-                           Nothing -> return (a, k)
-                           Just b -> (b,) <$> f b
-                          )
+                 element (a, k)
+                         (\_ a -> return (a, Nothing))
+                         (return . fst)
+                         (\m (a,k) -> m k >>= \case
+                          Nothing -> return (a, k)
+                          Just b -> (b,) <$> f b
+                         )
                           
 -- The previous two constructions pertain to values of a coalgebraic nature.
 -- The first, FunSeg, a comonad of time. The second, a coalgebra of f, or equivalently
@@ -55,15 +55,15 @@ infixl 3 :<<
 type Reagent t f a = FunSeg t (Moment t (Mix t f (FunSeg t) a))
 
 reagent :: (Ord t, Num t) => Reagent t f a -> Moment t (Reactive t f a)
-reagent r = reactive r
-                     (\dt a -> return (stepF dt a, Nothing))
-                     (\(Query q) r -> do
-                      (x :<< k) <- extract r
-                      return (q x k)
-                     )
-                     (\(Message m) r -> do
-                      (x :<< k) <- extract r
-                      m x k >>= \case
-                       Nothing -> return r
-                       Just b -> b
-                     )
+reagent r = element r
+                    (\dt a -> return (stepF dt a, Nothing))
+                    (\r -> do 
+                     (x :<< _) <- extract r
+                     return x
+                    )
+                    (\m r -> do
+                     (_ :<< k) <- extract r
+                     m k >>= \case
+                      Nothing -> return r
+                      Just b -> b
+                    )

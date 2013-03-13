@@ -24,6 +24,7 @@ source-repository head
 
 library
   exposed-modules:     Data.Fluorine
+                       Data.Fluorine.Anchor
                        Data.Fluorine.Moment
                        Data.Fluorine.FunSeg
                        Data.Fluorine.Reactive

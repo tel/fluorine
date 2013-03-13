@@ -1,4 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE GADTs #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Fluorine.Reactive
@@ -16,38 +18,62 @@ import Control.Monad.Reader (ReaderT (..))
 import Data.Fluorine.Anchor
 import Data.Fluorine.Moment
 
--- Think of Reactive t f a as Cofree f a, except you cannot peak ahead:
--- you can only examine the a you have and the continuation of the value
--- that is encoded by the type constructor f. You can also choose a continuation
--- in order to advance the value. The time dependency of Reactive is implicit.
-data Reactive t f a = Reactive Anchor
-                               (forall r. Query f a r -> Moment t r)
-                               (Message f a -> Moment t ())
-
+data Reactive t k a where
+ Reactive :: forall t k a.
+             Anchor
+          -> Moment t a
+          -> ((forall u. k u -> Moment t (Maybe u)) -> Moment t ())
+          -> Reactive t k a
+                               
 -- Newtypes so that you can store queries and messages to a Reactive value without needing
--- the broken ImpredicativeTypes extension.                  
-newtype Query f a r = Query { runQuery :: forall u. a -> f u -> r }
-newtype Message f a = Message { runMessage :: forall t u. a -> f u -> Moment t (Maybe u) }
+-- the broken ImpredicativeTypes extension.
+newtype Message t k = Message { runMessage :: forall u . k u -> Moment t (Maybe u) }
 
-query :: Reactive t f a -> Query f a r -> Moment t r
-message :: Reactive t f a -> Message f a -> Moment t ()
+query :: Reactive t k a -> Moment t a
+message :: Reactive t k a -> Message t k -> Moment t ()
 
 {-# INLINE query #-}
 {-# INLINE message #-}
-query (Reactive _ k _) q = k q
-message (Reactive _ _ k) m = k m
+query (Reactive a o _) = io (touchAnchor a) >> o
+                              
+message (Reactive a _ k) (Message m) = io (touchAnchor a) >> k m
 
 -- The standard way of creating a reactive value. It handles cell creation and hook-up.
-reactive :: s
-         -> (t -> s -> IO (s, Maybe (Moment t ())))
-         -> (forall r. Query f a r -> s -> Moment t r)
-         -> (Message f a -> s -> Moment t s)
-         -> Moment t (Reactive t f a)
-
-reactive s t o f = Moment . ReaderT $ \sc -> do
+element :: forall s t k a.
+           s
+        -> (t -> s -> IO (s, Maybe (Moment t ())))
+        -> (s -> Moment t a)
+        -> ((forall u. k u -> Moment t (Maybe u)) -> s -> Moment t s)
+        -> Moment t (Reactive t k a)
+        
+-- A reactive value that doesn't have a cell. It's called a compound because it is formed from the
+-- interaction of other reactive values.
+compound :: Moment t a
+         -> ((forall u. k u -> Moment t (Maybe u)) -> Moment t ())
+         -> Moment t (Reactive t k a)
+         
+element s t o k = Moment . ReaderT $ \sc -> do
  c <- mkCell s
  a <- mkCell Nothing
- let push u = withPushing c (\c -> io (obsCell c) >>= f u >>= io . pushCell c)
+ let push :: (forall u. k u -> Moment t (Maybe u)) -> Moment t ()
+     push u = withPushing c (\c -> io (obsCell c) >>= k u >>= io . pushCell c)
      step dt = obsCell c >>= t dt >>= \(c', ma) -> stepCell c c' >> pushCell a ma
  an <- runMoment (register step (finalizeCell c >> obsCell a)) sc
- return (Reactive an (\q -> o q =<< io (obsCell c)) push)
+ return (Reactive an (o =<< io (obsCell c)) push)
+ 
+compound o k = io mkAnchor >>= \an -> return (Reactive an o k)
+
+-- Reactive values are sort of like profunctors. They are contravariant in their f parameter
+-- and covariant in their a parameter.
+
+dimap :: (Message t g -> Moment t (Message t k)) 
+      -> (a -> Moment t b) 
+      -> Reactive t k a 
+      -> Reactive t g b
+lmap :: (Message t g -> Moment t (Message t k)) -> Reactive t k a -> Reactive t g a
+rmap :: (a -> Moment t b) -> Reactive t k a -> Reactive t k b
+
+dimap lm rm (Reactive an o k) = Reactive an (rm =<< o) $ \i -> do m <- lm (Message i)
+                                                                  k (runMessage m)
+lmap lm = dimap lm return
+rmap rm = dimap return rm
