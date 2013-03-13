@@ -47,7 +47,7 @@ machine a f = do k <- f a
 -- to allow full access to dynamic effects. The result is the following, rather ugly construction.
 
 -- Our method of mixing comonads and effects.
-data Mix t f g a = a :<< f (Moment t (g (Moment t (Mix t f g a))))
+data Mix t f g a = a :<< f (g (Moment t (Mix t f g a)))
 infixl 3 :<<
 
 -- "A time-varying effect of the environment that produces a value, and a continuation that
@@ -65,5 +65,5 @@ reagent r = element r
                      (_ :<< k) <- extract r
                      m k >>= \case
                       Nothing -> return r
-                      Just b -> b
+                      Just b -> return b
                     )
