@@ -1,0 +1,9 @@
+*.exe
+*.o
+*.hidir
+*.log
+*.prof
+*.aux
+*.ps
+*.hp
+dist/

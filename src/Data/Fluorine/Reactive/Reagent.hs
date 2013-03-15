@@ -67,3 +67,15 @@ reagent r = element r
                       Nothing -> return r
                       Just b -> return b
                     )
+
+-- References are fairly useful.
+data RefK i a = RefK (i -> a)
+
+type RRef s t a = Reactive s t (RefK a) a
+makeRef :: a -> Moment s t (RRef s t a)
+readRef :: RRef s t a -> Moment s t a
+writeRef :: RRef s t a -> a -> Moment s t ()
+
+makeRef i = machine i (const (return (RefK id)))
+readRef = query
+writeRef r i = message r (Message $ \(RefK f) -> return . Just $ f i)
