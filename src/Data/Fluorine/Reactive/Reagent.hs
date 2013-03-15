@@ -19,9 +19,9 @@ import Data.Fluorine.Reactive
 import Data.Fluorine.Reactive.Source
 
 -- If we want to define a Reactive value that does not receive messages
-animation :: (Ord t, Num t) => FunSeg t a -> Moment t (Source t a)
+animation :: (Ord t, Num t) => FunSeg t a -> Moment s t (Source s t a)
 -- If we want to define a timeless Reactive value that receives messages
-machine :: a -> (a -> Moment t (f a)) -> Moment t (Reactive t f a)
+machine :: a -> (a -> Moment s t (f a)) -> Moment s t (Reactive s t f a)
 
 animation a = element a
                       (\dt a -> return (stepF dt a, Nothing))
@@ -47,14 +47,14 @@ machine a f = do k <- f a
 -- to allow full access to dynamic effects. The result is the following, rather ugly construction.
 
 -- Our method of mixing comonads and effects.
-data Mix t f g a = a :<< f (g (Moment t (Mix t f g a)))
+data Mix s t f g a = a :<< f (g (Moment s t (Mix s t f g a)))
 infixl 3 :<<
 
 -- "A time-varying effect of the environment that produces a value, and a continuation that
 -- has access to effects and produces a new reagent."
-type Reagent t f a = FunSeg t (Moment t (Mix t f (FunSeg t) a))
+type Reagent s t f a = FunSeg t (Moment s t (Mix s t f (FunSeg t) a))
 
-reagent :: (Ord t, Num t) => Reagent t f a -> Moment t (Reactive t f a)
+reagent :: (Ord t, Num t) => Reagent s t f a -> Moment s t (Reactive s t f a)
 reagent r = element r
                     (\dt a -> return (stepF dt a, Nothing))
                     (\r -> do 

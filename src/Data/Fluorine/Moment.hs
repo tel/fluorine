@@ -32,23 +32,23 @@ import Data.Fluorine.Anchor
 --
 -- The second argument to Scheduler is the action to take in order to determine 
 -- the next time step.
-data Scheduler t = Scheduler (IORef [APtr (t -> IO (), IO (Maybe (Moment t ())))])
-                             (IO t)
+data Scheduler s t = Scheduler (IORef [APtr (t -> IO (), IO (Maybe (Moment s t ())))])
+                               (IO t)
 -- The Moment monad is simply IO with access to a Scheduler that handles all
 -- time-bookkeeping functionality. We wrap it in a newtype to give nicer error messages.
-newtype Moment t a = Moment { runMoment' :: ReaderT (Scheduler t) IO a }
+newtype Moment s t a = Moment { runMoment' :: ReaderT (Scheduler s t) IO a }
  deriving ( Functor, Applicative, Monad
-          , MonadIO, MonadFix, MonadReader (Scheduler t)
+          , MonadIO, MonadFix, MonadReader (Scheduler s t)
           )
 
-runMoment :: Moment t a -> Scheduler t -> IO a
+runMoment :: Moment s t a -> Scheduler s t -> IO a
 runMoment = runReaderT . runMoment'
           
-mkScheduler :: IO t -> IO (Scheduler t)
-stepScheduler :: Scheduler t -> IO ()
+mkScheduler :: IO t -> IO (Scheduler s t)
+stepScheduler :: Scheduler s t -> IO ()
 -- Register hooks an update action into the Scheduler and returns the Anchor which
 -- owns it.
-register :: (t -> IO ()) -> IO (Maybe (Moment t ())) -> Moment t Anchor
+register :: (t -> IO ()) -> IO (Maybe (Moment s t ())) -> Moment s t Anchor
           
 mkScheduler mt = Scheduler <$> newIORef [] <*> return mt
 stepScheduler sc@(Scheduler mk tick) = do
@@ -77,8 +77,8 @@ register a1 a2 = Moment . ReaderT $ \(Scheduler m _) -> do
 data Phase a = Phase !a | Stepping !a !a
 -- A cell is either Cell or in the middle of Pushing during an event occurence. This is how
 -- we handle events occuring within events properly.
-data Cell t a = Cell (Phase a) | Pushing [MCell t a -> Moment t ()] (Phase a)
-type MCell t a = IORef (Cell t a)
+data Cell s t a = Cell (Phase a) | Pushing [MCell s t a -> Moment s t ()] (Phase a)
+type MCell s t a = IORef (Cell s t a)
 
 {-# INLINABLE mkCell #-}
 {-# INLINABLE obsCell#-}
@@ -86,14 +86,14 @@ type MCell t a = IORef (Cell t a)
 {-# INLINABLE pushCell #-}
 {-# INLINABLE finalizeCell #-}
 
-mkCell :: a -> IO (MCell t a)
-obsCell :: MCell t a -> IO a
-stepCell :: MCell t a -> a -> IO ()
-pushCell :: MCell t a -> a -> IO ()
-finalizeCell :: MCell t a -> IO ()
+mkCell :: a -> IO (MCell s t a)
+obsCell :: MCell s t a -> IO a
+stepCell :: MCell s t a -> a -> IO ()
+pushCell :: MCell s t a -> a -> IO ()
+finalizeCell :: MCell s t a -> IO ()
 
-withPushing :: MCell t a -> (MCell t a -> Moment t ()) -> Moment t ()
-exitPushing :: MCell t a -> Moment t ()
+withPushing :: MCell s t a -> (MCell s t a -> Moment s t ()) -> Moment s t ()
+exitPushing :: MCell s t a -> Moment s t ()
 
 mkCell x = newIORef (Cell (Phase x))
 obsCell rc = readIORef rc >>= \case
@@ -123,7 +123,7 @@ finalizeCell rc = readIORef rc >>= \case
  
 -- liftIO is an eyesore
 {-# INLINABLE io #-}
-io :: IO a -> Moment t a
+io :: IO a -> Moment s t a
 io = liftIO
  
 withPushing rc f = io (readIORef rc) >>= \case

@@ -20,12 +20,12 @@ import Data.Fluorine.Moment
 import Data.Fluorine.Reactive
 
 -- Sources don't respond to any messages.
-type Source t a = Reactive t (Const Void) a
+type Source s t a = Reactive s t (Const Void) a
 
 -- source is updated by an IO action every frame.
-source :: a -> IO a -> Moment t (Source t a)
+source :: a -> IO a -> Moment s t (Source s t a)
 -- creates a callback to an unbounded queue which is emptied each frame.
-callback :: ((a -> IO ()) -> IO ()) -> Moment t (Source t [a])
+callback :: ((a -> IO ()) -> IO ()) -> Moment s t (Source s t [a])
 
 source a0 a = element a0 
                       (\_ _ -> (,Nothing) <$> a) 

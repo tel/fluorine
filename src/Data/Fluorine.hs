@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase, RankNTypes #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Fluorine
@@ -47,9 +47,9 @@ import Data.Fluorine.Reactive.Source
 -- Reagent is a powerful way of defining Reactive values.
 import Data.Fluorine.Reactive.Reagent
 
-data Reaction t = Reaction (Moment t (Reaction t)) | Completed
+data Reaction s t = Reaction (Moment s t (Reaction s t)) | Completed
 
-reactimate :: IO t -> Reaction t -> IO ()
+reactimate :: IO t -> (forall s. Reaction s t) -> IO ()
 
 reactimate tick r = do
   case r of
