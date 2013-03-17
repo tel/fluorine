@@ -26,6 +26,8 @@ type Source s t a = Reactive s t (Const Void) a
 source :: a -> IO a -> Moment s t (Source s t a)
 -- creates a callback to an unbounded queue which is emptied each frame.
 callback :: ((a -> IO ()) -> IO ()) -> Moment s t (Source s t [a])
+-- Hides the dynamics of a Reactive to make it a source
+project :: Reactive s t f a -> Source s t a
 
 source a0 a = element a0 
                       (\_ _ -> (,Nothing) <$> a) 
@@ -39,3 +41,5 @@ callback k = do
  where get c = tryReadTChan c >>= \case
         Just x -> (x:) <$> get c
         Nothing -> return []
+        
+project = lmap undefined
