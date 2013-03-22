@@ -22,6 +22,11 @@ import Data.Fluorine.Reactive.Source
 animation :: (Ord t, Num t) => FunSeg t a -> Moment s t (Source s t a)
 -- If we want to define a timeless Reactive value that receives messages
 machine :: a -> (a -> Moment s t (f a)) -> Moment s t (Reactive s t f a)
+-- The most generalized machine type I could think of.
+gmachine :: (Ord t, Num t)
+         => FunSeg t (Moment s t a) 
+         -> (a -> Moment s t (f (FunSeg t (Moment s t a))))
+         -> Moment s t (Reactive s t f a)
 
 animation a = element a
                       (\dt a -> return (stepF dt a, Nothing))
@@ -36,6 +41,15 @@ machine a f = do k <- f a
                           Nothing -> return (a, k)
                           Just b -> (b,) <$> f b
                          )
+                         
+gmachine a f = element a
+                       (\t a -> return (stepF t a, Nothing))
+                       extract
+                       (\m a -> (m =<< f =<< extract a) >>= \case
+                        Nothing -> return a
+                        Just b -> return b
+                       )
+                                   
                           
 -- The previous two constructions pertain to values of a coalgebraic nature.
 -- The first, FunSeg, a comonad of time. The second, a coalgebra of f, or equivalently
