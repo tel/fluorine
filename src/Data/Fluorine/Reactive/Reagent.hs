@@ -21,7 +21,7 @@ import Data.Fluorine.Reactive.Source
 -- If we want to define a Reactive value that does not receive messages
 animation :: (Ord t, Num t) => FunSeg t a -> Moment s t (Source s t a)
 -- If we want to define a timeless Reactive value that receives messages
-machine :: a -> (a -> Moment s t (f a)) -> Moment s t (Reactive s t f a)
+machine :: Moment s t a -> (a -> Moment s t (f (Moment s t a))) -> Moment s t (Reactive s t f a)
 -- The most generalized machine type I could think of.
 gmachine :: (Ord t, Num t)
          => FunSeg t (Moment s t a) 
@@ -33,13 +33,12 @@ animation a = element a
                       (return . extract)
                       (const return)
                        
-machine a f = do k <- f a
-                 element (a, k)
+machine a f = do element a
                          (\_ a -> return (a, Nothing))
-                         (return . fst)
-                         (\m (a,k) -> m k >>= \case
-                          Nothing -> return (a, k)
-                          Just b -> (b,) <$> f b
+                         id
+                         (\m a -> (m =<< f =<< a) >>= \case
+                          Nothing -> return a
+                          Just b -> return b
                          )
                          
 gmachine a f = element a
@@ -51,7 +50,7 @@ gmachine a f = element a
                        )
                                    
                           
--- The previous two constructions pertain to values of a coalgebraic nature.
+-- The previous three constructions pertain to values of a coalgebraic nature.
 -- The first, FunSeg, a comonad of time. The second, a coalgebra of f, or equivalently
 -- one of Cofree f, although we add a layer of Moment t for dynamic effects.
 
@@ -90,6 +89,6 @@ makeRef :: a -> Moment s t (RRef s t a)
 readRef :: RRef s t a -> Moment s t a
 writeRef :: RRef s t a -> a -> Moment s t ()
 
-makeRef i = machine i (const (return (RefK id)))
+makeRef i = machine (return i) (const (return (RefK return)))
 readRef = query
 writeRef r i = message r (Message $ \(RefK f) -> return . Just $ f i)
